@@ -5,12 +5,12 @@ import pandas as pd
 import geopandas as gpd
 from prefect import flow
 
-JSON_DIR = "/home/rohith/python files/AuthData/Geojsons/"  #PATH TO THE GEJSON FILES
-CSV_DIR = "/home/rohith/python files/AuthData/GeoJson.csv"
-DATA_DIR = "/home/rohith/python files/AuthData/Data/"
-SOURCE_DIR = "/home/rohith/python files/AuthData/sourceData/"
+JSON_DIR = "/home/rohith/work/AuthData/Geojsons/"  #PATH TO THE GEJSON FILES
+CSV_DIR = "/home/rohith/work/AuthData/GeoJson.csv"
+DATA_DIR = "/home/rohith/work/AuthData/Data/"
+SOURCE_DIR = "/home/rohith/work/AuthData/sourceData/"
 
-@flow(name='UNSALB',flow_run_name="{file_name}",log_prints=True)
+# @flow(name='UNSALB',flow_run_name="{file_name}",log_prints=True)
 #Method to zip the files 
 def zip_directory(path, zip_path, file_name):
 
@@ -66,15 +66,13 @@ def create_meta_file(fileName, admLevel):
             iso=isoCode.upper()
             boundary=boundary.lstrip()
             original_string = boundary
-
-            if isoCode== "mli":
-                start_date, _ = original_string.split()
-                start_year, start_month, start_day = start_date.split("-")
-                new_date = f"{start_day}-{start_month}-{start_year} to "
+ 
+            start_date, _, end_date = original_string.split()
+            start_year, start_month, start_day = start_date.split("-")
+            end_year, end_month, end_day = end_date.split("-")
+            if start_day == "00" or start_month == "00":
+                new_date = f"01-01-{start_year} to {end_day}-{end_month}-{end_year}"
             else:
-                start_date, _, end_date = original_string.split()
-                start_year, start_month, start_day = start_date.split("-")
-                end_year, end_month, end_day = end_date.split("-")
                 new_date = f"{start_day}-{start_month}-{start_year} to {end_day}-{end_month}-{end_year}"
 
             text = f"Boundary Representative of Year: {new_date}\n" \
@@ -108,22 +106,55 @@ def process_geojson_files(directory, dissolve_column, shape_type, adm_level):
                     if possible_column in gdf.columns:
                         dissolve_column = possible_column
                         break
+            
+            else:
+                dissolve_column = "adm1nm"
 
-            gdf = gdf.dissolve(by=dissolve_column)
+            gdf = gdf.dissolve(by=dissolve_column, as_index=False)
+            # Save the updated GeoDataFrame back to the file
+            # output_dir = os.path.join(directory, adm_level, f"{file_name}_{adm_level}.geojson")
+            # gdf.to_file(output_dir, driver='GeoJSON')
 
-        # Rename the columns as needed
-        new_column_names = {
-            "iso3cd": "shapeGroup",
-            dissolve_column: "shapeName",
-            # Add more column name mappings as needed
-        }
+            # gdf = gpd.read_file(output_dir)
+
+        if adm_level == "ADM2":
+            # Rename the columns as needed
+            new_column_names = {
+                "iso3cd": "shapeGroup",
+                "adm2nm": "shapeName",
+                # Add more column name mappings as needed
+            }
+        elif adm_level == "ADM1":
+            new_column_names = {
+                "iso3cd": "shapeGroup",
+                dissolve_column: "shapeName",
+                # Add more column name mappings as needed
+            }
+        else:
+            # Rename the columns as needed
+            if dissolve_column == "iso3cd":
+                new_column_names = {
+                "iso3cd": "shapeGroup",
+                # dissolve_column: "shapeName",
+                # Add more column name mappings as needed
+            }
+                gdf["shapeName"] = file_name
+            else:
+                new_column_names = {
+                    "iso3cd": "shapeGroup",
+                    dissolve_column: "shapeName",
+                    # Add more column name mappings as needed
+                }
         gdf.rename(columns=new_column_names, inplace=True)
-
         # Add a new column with the provided values
         gdf["shapeType"] = shape_type
 
         # Columns you want to keep
-        columns_to_keep = ["shapeGroup", "shapeName", "shapeType", "geometry"]
+        remove_columns = ["CYP", "LSO", "ROU"]
+        if gdf["shapeGroup"].isin(remove_columns).any() and adm_level == "ADM2":
+            columns_to_keep = ["shapeGroup", "shapeType", "geometry"]
+        else:
+            columns_to_keep = ["shapeGroup", "shapeName", "shapeType", "geometry"]
 
         # Drop columns except the ones in columns_to_keep
         columns_to_drop = [col for col in gdf.columns if col not in columns_to_keep]   
@@ -133,16 +164,22 @@ def process_geojson_files(directory, dissolve_column, shape_type, adm_level):
         output_dir = os.path.join(directory, adm_level, f"{file_name}_{adm_level}.geojson")
         gdf.to_file(output_dir, driver='GeoJSON')
 
+        #printing the column names
+        print("The column names of data frame :",gdf.columns)
+
         text, iso = create_meta_file(file_name, admLevel=adm_level)
         create_directory(text, iso, output_dir, file_name, admLevel=adm_level)
 
 def create_adm2level_geojsons(directory):
+    print("ADM2 FILES")
     process_geojson_files(directory, dissolve_column=None, shape_type="ADM2", adm_level="ADM2")
 
 def create_adm1level_geojsons(directory):
+    print("ADM1 FILES")
     process_geojson_files(directory, dissolve_column="adm1nm", shape_type="ADM1", adm_level="ADM1")
 
 def create_adm0level_geojsons(directory):
+    print("ADM0 FILES")
     process_geojson_files(directory, dissolve_column="adm0", shape_type="ADM0", adm_level="ADM0")
 
 create_adm2level_geojsons(JSON_DIR)
