@@ -1,0 +1,17 @@
+#!/bin/tcsh
+#PBS -N updatedwebscraper
+#PBS -l nodes=1:vortex:ppn=12
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#PBS -o /sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/jobFiles
+
+source "/usr/local/anaconda3-2021.05/etc/profile.d/conda.csh"
+module load anaconda3/2021.05
+module load python/usermodules
+
+unsetenv PYTHONPATH
+
+conda activate gbAuth
+cd /sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData
+python updatedwebscraper.py vortex >& updatedwebscraper.out
+
