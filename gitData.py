@@ -2,14 +2,21 @@ import subprocess
 from prefect import flow
 import os
 import shutil
+import datetime
 
 #@flow(flow_run_name="Humanitarian Data",log_prints=True)
+def generate_flow_run_name():
+    date = datetime.datetime.now(datetime.timezone.utc)
+
+    return f"On-{date:%A}-{date:%B}-{date.day}-{date.year}"
+
+@flow(name="UNSALB: Git Data",flow_run_name=generate_flow_run_name, log_prints=True)
 def GitData():
     # Move into the Local Dir
-    os.chdir('/home/rohith/work/AuthData/gitData')
+    os.chdir('/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/gitData')
 
     #Delete the directory SYR2
-    subdirectory = "/home/rohith/work/AuthData/gitData/geoBoundaries"
+    subdirectory = "/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/gitData/geoBoundaries"
     if os.path.exists(subdirectory) and os.path.isdir(subdirectory):
         shutil.rmtree(subdirectory)
 
@@ -21,7 +28,7 @@ def GitData():
     subprocess.run(['git', 'clone', '--filter=blob:none', '--no-checkout', 'https://github.com/wmgeolab/geoBoundaries.git'])
 
     # Move into the cloned repository
-    os.chdir('/home/rohith/work/AuthData/gitData/geoBoundaries')
+    os.chdir('/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/gitData/geoBoundaries')
 
     # Set up sparse checkout
     subprocess.run(['git', 'sparse-checkout', 'set', 'sourceData/gbAuthoritative'])
