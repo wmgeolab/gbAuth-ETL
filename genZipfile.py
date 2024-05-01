@@ -1,14 +1,15 @@
 import os
 import shutil
+import datetime
 import zipfile
 import pandas as pd
 import geopandas as gpd
-from prefect import flow
+from prefect import flow, task
 
-JSON_DIR = "/home/rohith/work/AuthData/Geojsons/"  #PATH TO THE GEJSON FILES
-CSV_DIR = "/home/rohith/work/AuthData/GeoJson.csv"
-DATA_DIR = "/home/rohith/work/AuthData/Data/"
-SOURCE_DIR = "/home/rohith/work/AuthData/sourceData/"
+JSON_DIR = "/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/Geojsons/"  #PATH TO THE GEJSON FILES
+CSV_DIR = "/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/GeoJson.csv"
+DATA_DIR = "/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/Data/"
+SOURCE_DIR = "/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/sourceData/"
 
 # @flow(name='UNSALB',flow_run_name="{file_name}",log_prints=True)
 #Method to zip the files 
@@ -90,12 +91,16 @@ def create_meta_file(fileName, admLevel):
 
     return text, iso
 
-
+@task
 def process_geojson_files(directory, dissolve_column, shape_type, adm_level):
     geojson_files = [file for file in os.listdir(directory) if file.endswith('.geojson')]
     for geojson_file in geojson_files:
         file_name = geojson_file.split(".")[0]
         input_file_path = os.path.join(directory, geojson_file)
+        # Check if the filename is "South Africa" and skip processing if it is
+        if file_name == "South Africa":
+            print(f"Skipping file '{geojson_file}' as it is named 'South Africa'")
+            continue
         gdf = gpd.read_file(input_file_path)
 
         # Apply dissolve method
@@ -182,7 +187,17 @@ def create_adm0level_geojsons(directory):
     print("ADM0 FILES")
     process_geojson_files(directory, dissolve_column="adm0", shape_type="ADM0", adm_level="ADM0")
 
-create_adm2level_geojsons(JSON_DIR)
-create_adm1level_geojsons(JSON_DIR)
-create_adm0level_geojsons(JSON_DIR)
+
+def generate_flow_run_name():
+    date = datetime.datetime.now(datetime.timezone.utc)
+
+    return f"On-{date:%A}-{date:%B}-{date.day}-{date.year}"
+
+@flow(name='UNSALB: Generating Zip Files',flow_run_name=generate_flow_run_name,log_prints=True)
+def generate_geojsons(directory):
+    create_adm2level_geojsons(directory)
+    create_adm1level_geojsons(directory)
+    create_adm0level_geojsons(directory)
+
+generate_geojsons(JSON_DIR)
  
