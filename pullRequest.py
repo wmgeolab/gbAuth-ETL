@@ -12,16 +12,16 @@ from github import Github
 from urllib.request import urlopen
 from urllib.parse import quote_plus
 
-downData = "/home/rohith/work/AuthData/sourceData"
-gitData = "/home/rohith/work/AuthData/gitData/geoBoundaries/sourceData/gbAuthoritative"
+downData = "/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/sourceData"
+gitData = "/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/gitData/geoBoundaries/sourceData/gbAuthoritative"
 
 # @flow(log_prints=True)
 # def hi(dir1, dir2):
 
-@flow(name='UNSALB',flow_run_name="{branchname}",log_prints=True)
+# @flow(name='UNSALB',flow_run_name="{branchname}",log_prints=True)
 def submit_to_github(branchname, title, body, src, dst, basename_hash):
     # init
-    g = Github(config('GITHUB_TOKEN', default='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'))
+    g = Github(config('GITHUB_TOKEN', default='enter token here'))
     upstream = g.get_repo('wmgeolab/geoBoundaries') # upstream
     upstream_branch = 'main'
     # get or create the fork
@@ -158,7 +158,7 @@ def compare_files(file1_path, file2_path,basename):
             print(f"{file1_path} and {file2_path} are the same")
         else:
             print(f"{file1_path} and {file2_path} are different")
-            src=f"/home/rohith/work/AuthData/sourceData/{basename}"
+            src=f"/sciclone/geounder/dev/geoBoundaries/scripts/geoBoundaryBot/external/AuthData/sourceData/{basename}"
             now = datetime.datetime.now()
             month = now.strftime("%B")  # Month name, full version
             today = date.today()
@@ -175,7 +175,12 @@ def compare_files(file1_path, file2_path,basename):
                      This automated pull request has been generated to update the existing files with the most recent versions obtained from UNSALB."""
             submit_to_github(branchname,title,body,src,dst,basename_hash)            
 
+def generate_flow_run_name():
+    date = datetime.datetime.now(datetime.timezone.utc)
 
+    return f"On-{date:%A}-{date:%B}-{date.day}-{date.year}"
+
+@flow(name='UNSALB: Check and PullRequest',flow_run_name=generate_flow_run_name,log_prints=True)
 def compare_directories(dir1, dir2):
     dir1_files = set(os.listdir(dir1))
     dir2_files = set(os.listdir(dir2))
