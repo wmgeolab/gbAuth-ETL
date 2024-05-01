@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup as bs
 import re
 import csv
 import shutil
+import datetime
+from prefect import flow
 import requests
 import urllib3
 import ssl
@@ -30,6 +32,12 @@ def save_geojson(url, filename):
     with open(filename, "wb") as f:
         f.write(response.content)
 
+def generate_flow_run_name():
+    date = datetime.datetime.now(datetime.timezone.utc)
+
+    return f"On-{date:%A}-{date:%B}-{date.day}-{date.year}"
+
+@flow(name='UNSALB: WebScrapping',flow_run_name=generate_flow_run_name, log_prints=True)
 def main():
     f = "./GeoJson.csv"
     rows = []
